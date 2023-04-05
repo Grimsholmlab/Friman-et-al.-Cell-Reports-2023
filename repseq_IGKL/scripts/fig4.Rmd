@@ -1,0 +1,226 @@
+---
+title: "Fig4"
+output: html_document
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+library(ComplexHeatmap)
+library(circlize)
+library(RColorBrewer)
+library(cowplot)
+library(ggplot2)
+library(dplyr)
+```
+
+## CDR3 length analysis
+Based on output from MiXCR (https://figshare.com/s/d7937088b4b9cbf3c827)
+
+```{r, warning=FALSE}
+df_CDR<-read.table("C:/NGS_tools/Light_Chain/repseq_IGKL/data/cdr3_size.tsv", header=T, sep = "\t")
+
+df_CDR<-data.frame(df_CDR)
+df_CDR$Sample <- as.factor(df_CDR$Sample)
+df_CDR$locus<-factor(df_CDR$locus)
+df_CDR$Cell_type <- as.factor(df_CDR$Cell_type)
+df_CDR$State <- factor(df_CDR$State,levels = c("Healthy", "Infected", "CVID"))
+df_CDR$Cell_state <- factor(df_CDR$Cell_state)
+levels(df_CDR$State) <- c("A", "B", "C")
+df_CDR$Cell_state <- factor(df_CDR$Cell_state)
+head(df_CDR)
+```
+
+```{r,warning=FALSE}
+df <- df_CDR %>%
+  group_by(locus,State,Sample, size, type = Cell_type) %>%
+  summarize(count = length(unique(cdr3aa))) %>%
+  group_by(locus, State,Sample,type) %>%
+  mutate(freq = count / sum(count))
+
+state_names<-c('IGK'="IGK",'IGL'="IGL",'A' = "Healthy",'B' ="CVID w.o AD", 'C' = "CVID with AD")
+
+p<-ggplot(df, aes(x = size,y=freq))+
+  geom_line(aes(group = Sample, colour =type),size=0.2)+
+  scale_colour_manual(values = c("#E74C3C", "#3498DB"))+
+  scale_y_continuous("Frequency",expand=c(0.01,0.01),limits=c(0,0.7))+
+  scale_x_continuous("CDR3 length (amino acids)", limits=c(5,20))+
+  scale_size_manual(values=c(0.5,0.5))+
+  facet_grid(State~locus,labeller = as_labeller(state_names))+
+  theme_gray()+
+  theme(axis.line = element_blank(),
+        axis.ticks = element_line(size=0.2,color = 'black'),
+        axis.ticks.length=unit(.05, "cm"),
+        legend.key.size = unit(0.2, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(color = "grey",
+                                          size = 0.2,
+                                          linetype = 'dotted'),
+        text=element_text(size=8,face="plain",family = "Helvetica"))+
+  labs(colour = "Subset")+
+  geom_label(data = data.frame(x = 18, y = 0.55, locus = "IGK", State="A", label = "T=-5.5369,\nP=0.001464"), 
+             aes(x = x, y = y, label = label), size=2,fill="grey92",label.size = NA,family = "Helvetica",label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))+
+  geom_label(data = data.frame(x = 18, y = 0.55, locus = "IGL", State="A", label = "T=-2.5031,\nP=0.04633"), 
+             aes(x = x, y = y, label = label), size = 2,fill="grey92",label.size = NA,family = "Helvetica",label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))+
+  geom_label(data = data.frame(x = 18, y = 0.55, locus = "IGK", State="B", label = "T=-6.5626,\nP=0.0005996"), 
+             aes(x = x, y = y, label = label), size = 2,fill="grey92",label.size = NA,family = "Helvetica",label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))+
+  geom_label(data = data.frame(x = 18, y = 0.55, locus = "IGL", State="B", label = "T=-1.2018,\nP=0.2747"), 
+             aes(x = x, y = y, label = label), size = 2,fill="grey92",label.size = NA,family = "Helvetica",label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))+
+  geom_label(data = data.frame(x = 18, y = 0.55, locus = "IGK", State="C", label = "T=-0.45432,\nP=0.6577"), 
+             aes(x = x, y = y, label = label), size = 2,fill="grey92",label.size = NA,family = "Helvetica",label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))+
+  geom_label(data = data.frame(x = 18, y = 0.55, locus = "IGL", State="C", label = "T=-1.2282,\nP=0.2429"), 
+             aes(x = x, y = y, label = label), size = 2,fill="grey92",label.size = NA,family = "Helvetica",label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))
+p
+```
+
+## CDR3 physiochemical stats
+File generated with vdjtools CalcCdrAAProfile module (documentation: https://vdjtools-doc.readthedocs.io/en/master/annotate.html).
+Uses MiXCR data (https://figshare.com/s/d7937088b4b9cbf3c827) as input. 
+```{r, warning=FALSE}
+df<-read.table("C:/NGS_tools/Light_Chain/repseq_IGKL/data/cdr3_AA_stats.tsv", header=T, sep = "\t")
+
+df$property<-factor(df$property,levels=c("hydropathy","charge","polarity","volume"))
+df$Sample <- as.factor(df$Sample)
+df$locus<-factor(df$locus)
+df$Cell_type <- as.factor(df$Cell_type)
+df$Status <- as.factor(df$Status)
+df$Cell_state <- factor(df$Cell_state,levels = c("Healthy bright","Healthy naive","Infected bright","Infected naive","CVID bright","CVID naive"))
+levels(df$Cell_state)<-c("Healthy:bright","Healthy:naive","CVID w.o AD:bright","CVID w.o AD:naive","CVID with AD:bright","CVID with AD:naive")
+head(df)
+```
+
+```{r, warning=FALSE}
+f_labels <- data.frame(property=c("hydropathy","charge","polarity","volume","hydropathy","charge","polarity","volume"),locus = c(rep("IGK",4),rep("IGL",4)), label = c("F=0.555, P=0.7", 
+                                                                                                                                                                       "F=4.75, P=0.0037",
+                                                                                                                                                                       "F=2.202, P=0.08",
+                                                                                                                                                                       "F=2.27, P=0.08",
+                                                                                                                                                                       "F=3.829, P=0.0108",
+                                                                                                                                                                       "F=0.843, P=0.5",
+                                                                                                                                                                       "F=1.668, P=0.1",
+                                                                                                                                                                       "F=4.759, P=0.00367"))
+f_labels$property<-factor(f_labels$property,levels=c("hydropathy","charge","polarity","volume"))
+
+
+d<-ggplot(df,aes(x=Cell_state,y=scaled_property))+
+  geom_boxplot(position = position_dodge(0.8),color="black",width=0.3,lwd=0.3,outlier.shape = NA)+
+  geom_jitter(position = position_dodge(0.8),aes(colour=Cell_state),size=0.7)+
+  facet_grid(locus~property)+
+  scale_y_continuous("Scaled mean property value",breaks=c(-2,0,2),limits = c(-3,4))+
+  scale_x_discrete(labels=c("Healthy bright" = "healthy\nbright","Healthy naive" = "healthy\nnaive", "CVID bright" = "CVID\nwith AD\nbright",
+                            "CVID naive" = "CVID\nwith AD\nnaive","Infected bright" = "CVID\nw.o AD\nbright",
+                            "Infected naive" = "CVID\nw.o AD\nnaive"))+
+  scale_colour_manual(values = c("#C31418","#F76A0E","#EACD1E","#66AB09","#137DE0","#8809B5"))+
+  labs(colour = "Status:subset")+
+  guides(colour=guide_legend(nrow=2,byrow=TRUE))+
+  theme_gray()+
+  theme(axis.line = element_blank(),
+        axis.title.x  = element_blank(),
+        axis.ticks = element_line(size=0.2,color = 'black'),
+        axis.ticks.length=unit(.05, "cm"),
+        legend.position = "bottom",
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
+        legend.key.size = unit(0.2, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(color = "grey",
+                                          size = 0.2,
+                                          linetype = 'dotted'),
+        text=element_text(size=8,face="plain",family = "Helvetica"))+
+  geom_label(x=3.7,y=3.7,aes(label=label),data=f_labels,size=2,fill="grey92",label.size = NA,
+             family = "Helvetica",label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))
+d
+```
+
+## Variable segment usage profile
+File generated with vdjtools CalcSegmentUsage module (documentation: https://vdjtools-doc.readthedocs.io/en/master/basic.html).
+Uses MiXCR data (https://figshare.com/s/d7937088b4b9cbf3c827) as input.
+```{r,warning=FALSE}
+df_heat<-read.table("C:/NGS_tools/Light_Chain/repseq_IGKL/data/IGLV_usage.tsv", header=T, sep = "\t")
+df_heat = subset(df_heat, select = -c(sample_id,state.id,cell.type.id,..filter..) )
+df_heat<-t(df_heat)
+fcts=df_heat[rowMeans(df_heat)>=0.01,]
+head(fcts)
+```
+
+```{r, warning=FALSE}
+status = factor(c(rep("CVID with AD",14),rep("Healthy",8),rep("CVID w.o AD",8)),levels=c("Healthy","CVID w.o AD","CVID with AD"))
+
+subset= factor(c(rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1)),
+               levels=c("Bright","Naive"))
+
+df2<-data.frame(status,subset)
+colnames(df2) <- c("status", "subset")
+head(df2)
+```
+
+```{r,warning=FALSE}
+col = list(status = c("CVID with AD" = "#9B59B6", "Healthy" = "#27AE60", "CVID w.o AD" = "#F1C40F"),
+           subset = c("Bright" = "#E74C3C", "Naive" = "#3498DB"))
+
+ha <- HeatmapAnnotation(
+  status = df2$status, subset = df2$subset,
+  col = col,
+  simple_anno_size = unit(0.3, "cm"),
+  annotation_legend_param = list(
+    status = list( 
+      title_gp = gpar(fontsize = 8, 
+                      fontface = "plain"), 
+      labels_gp = gpar(fontsize = 6)),
+    subset = list( 
+      title_gp = gpar(fontsize = 8,
+                      fontface = "plain"), 
+      labels_gp = gpar(fontsize = 6)))
+  ,
+  annotation_name_gp = gpar(fontsize=8))
+```
+
+```{r,warning=FALSE}
+colnames(fcts)<-c("CVID with AD-41","CVID with AD-41","CVID with AD-45","CVID with AD-45","CVID with AD-29","CVID with AD-29","CVID with AD-35","CVID with AD-35","CVID with AD-14","CVID with AD-14","CVID with AD-5","CVID with AD-5","CVID with AD-47","CVID with AD-47",
+                  "Healthy-1","Healthy-1","Healthy-2","Healthy-2","Healthy-3","Healthy-3","Healthy-4","Healthy-4",
+                  "CVID w.o AD-43","CVID w.o AD-43","CVID w.o AD-49","CVID w.o AD-49","CVID w.o AD-50","CVID w.o AD-50","CVID w.o AD-54","CVID w.o AD-54")
+
+coul <- colorRampPalette(brewer.pal(9,"YlGn"))(34)
+
+gene<-factor(c(rep("IGK",15),rep("IGL",11)),levels=c("IGK","IGL"))
+gene<-data.frame(gene)
+col2 = list(gene = c("IGK" = "#36454F", "IGL" = "lightgrey"))
+ha2 <- rowAnnotation(
+  gene = gene$gene,
+  col = col2,show_legend=FALSE,
+  annotation_name_gp = gpar(fontsize=8),
+  simple_anno_size = unit(0.3, "cm"))
+```
+
+```{r,warning=FALSE}
+ht1=Heatmap(fcts,
+            name="Gene frequency",
+            col=coul,
+            top_annotation=ha,
+            right_annotation=ha2,
+            column_names_gp = grid::gpar(fontsize = 6),
+            row_names_gp = grid::gpar(fontsize = 6),
+            heatmap_legend_param=list(legend_direction="horizontal",title_poistion="top",title_gp=gpar(fontsize=8,fontface="bold"),labels_gp = gpar(fontsize = 8)))
+
+p2 = grid.grabExpr(draw(ht1,heatmap_legend_side="bottom"),wrap=TRUE)
+
+plot_c<-plot_grid(p2)
+plot_c
+```

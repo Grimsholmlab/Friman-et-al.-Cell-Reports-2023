@@ -1,0 +1,218 @@
+---
+title: "Fig5"
+output: html_document
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+library(ggplot2)
+```
+
+## Rank abundance plot 
+
+Based on output from MiXCR (https://figshare.com/s/d7937088b4b9cbf3c827)
+
+```{r, warning=FALSE}
+df<-read.table("C:/NGS_tools/Light_Chain/repseq_IGKL/data/rank_abundance.tsv", header=T, sep = "\t")
+
+df<-data.frame(df)
+df$Sample <- as.factor(df$Sample)
+df$locus<-factor(df$locus)
+df$Cell_type <- as.factor(df$Cell_type)
+df$State <- factor(df$State,levels=c("Healthy","Infected","CVID"))
+df$Cell_state <- factor(df$Cell_state,levels = c("Healthy bright","Healthy naive","CVID bright","CVID naive","Infected bright","Infected naive"))
+head(df)
+```
+
+```{r, warning=FALSE}
+state_names<-c('IGK'="IGK",'IGL'="IGL", 'Healthy' = "Healthy", 'Infected' = "CVID w.o AD",'CVID' ="CVID with AD")
+
+p<-ggplot(df, aes(x = rank,y=freq))+
+  geom_line(aes(group = Sample,size=Cell_type, colour = factor(Cell_type)))+
+  facet_grid(State~locus,labeller = as_labeller(state_names))+
+  scale_y_log10("Clonotype frequency",limits=c(1e-05,1e-01),breaks=c(1e-05,1e-04,1e-03,1e-02,1e-01))+
+  scale_x_log10("Clonotype rank",breaks=c(1,10,100,1000,10000),limits=c(1,10000))+
+  scale_colour_manual(values = c("#E74C3C", "#3498DB"))+
+  scale_size_manual(values=c(0.4,0.4))+
+  theme_gray()+
+  theme(axis.line = element_blank(),
+        axis.ticks = element_line(size=0.2,color = 'black'),
+        axis.ticks.length=unit(.05, "cm"),
+        legend.key.size = unit(0.2, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(color = "grey",
+                                          size = 0.2,
+                                          linetype = 'dotted'),
+        text=element_text(size=8,face="plain",family = "Helvetica"))+
+  labs(colour = "Subset")+
+  guides(size = FALSE)
+p
+```
+
+## Diversity estimates
+
+File generated with vdjtools CalcDiversityStats module for top n clonotypes (documentation: https://vdjtools-doc.readthedocs.io/en/master/diversity.html). Uses downsampled MiXCR data (https://figshare.com/s/d7937088b4b9cbf3c827) as input.
+
+```{r, warning=FALSE}
+df_div<-read.table("C:/NGS_tools/Light_Chain/repseq_IGKL/data/diversity_aa_exact.tsv", header=T, sep = "\t")
+head(df_div)
+```
+
+```{r,warning=FALSE}
+df_div$Cell_state <- factor(df_div$Cell_state, levels=c("Healthy bright","Healthy naive","Infected bright","Infected naive", "CVID bright","CVID naive"))
+levels(df_div$Cell_state)<-c("Healthy:bright","Healthy:naive","CVID w.o AD:bright","CVID w.o AD:naive","CVID with AD:bright","CVID with AD:naive")
+df_div$cell_type <- as.factor(df_div$cell_type)
+df_div$sample_id <- as.factor(df_div$sample_id)
+df_div$state <- as.factor(df_div$state)
+levels(df_div$Cell_state)
+```
+
+```{r,warning=FALSE}
+a_labels<-data.frame(locus = c("IGK","IGL"), label = c("T=4.8948,\nP=0.002725,\ndiff=0.035481", "T=2.2393,\nP=0.06642,\ndiff=0.100811")) 
+
+c_labels<-data.frame(locus = c("IGK","IGL"), label = c("T=4.2418,\nP=0.005429,\ndiff=0.0345627", "T=1.8563,\nP=0.1128,\ndiff=0.0835652"))
+
+b_labels<-data.frame(locus = c("IGK","IGL"), label = c("T=0.66567,\nP=0.5182,\ndiff=0.0069001", "T=1.4502,\nP=0.1726,\ndiff=0.0589776"))
+
+c<-ggplot(df_div,aes(x=Cell_state,y=normalizedShannonWienerIndex_mean))+
+  geom_boxplot(position = position_dodge(0.8),color="black",width=0.3,lwd=0.4,outlier.shape = NA)+
+  geom_jitter(position = position_dodge(0.8),aes(colour=Cell_state),size=1.5)+
+  facet_grid(~locus)+
+  scale_y_continuous("Normalized Shannon Wiener diversity",breaks=c(0.7,0.8,0.9,1.0),limits = c(0.7,1.03))+
+  scale_colour_manual(values = c("#C31418","#F76A0E","#EACD1E","#66AB09","#137DE0","#8809B5"))+
+  labs(colour = "Status:subset")+
+  guides(colour=guide_legend(nrow=3,byrow=TRUE))+
+  theme_gray()+
+  theme(axis.line = element_blank(),
+        axis.title.x  = element_blank(),
+        axis.ticks = element_line(size=0.2,color = 'black'),
+        axis.ticks.length=unit(.05, "cm"),
+        axis.ticks.x=element_blank(),
+        axis.text.x =element_blank(),
+        legend.key.size = unit(0.2, 'cm'),
+        legend.position="bottom",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(color = "grey",
+                                          size = 0.2,
+                                          linetype = 'dotted'),
+        text=element_text(size=8,face="plain"))+
+  geom_label(x=1.5,y=1.02,aes(label=label),data=a_labels,size=1.7,
+             fill="grey92",label.size = NA
+             ,label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))+
+  geom_label(x=3.5,y=1.02,aes(label=label),data=c_labels,size=1.7,
+             fill="grey92",label.size = NA
+             ,label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))+
+  geom_label(x=5.5,y=1.02,aes(label=label),data=b_labels,size=1.7,
+             fill="grey92",label.size = NA
+             ,label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))
+c
+```
+
+## Overlap F2 metrics between subsets
+
+File generated with vdjtools CalcPairwiseDistances module (documentation: https://vdjtools-doc.readthedocs.io/en/master/overlap.html). Uses  MiXCR data (https://figshare.com/s/d7937088b4b9cbf3c827) as input.
+
+```{r, warning=FALSE}
+df_overlap<-read.table("C:/NGS_tools/Light_Chain/repseq_IGKL/data/intersect_batch_aa.tsv", header=T, sep = "\t")
+df_overlap$X1_state.id <- factor(df_overlap$X1_state.id,levels = c("Healthy","Infected","CVID"))
+head(df_overlap)
+```
+
+```{r, warning=FALSE}
+d_labels <- data.frame(X1_locus = c("IGK","IGL"), label = c("F=7.705,\nP=0.00704","F=2.717,\nP=0.106"))
+
+q<-ggplot(df_overlap,aes(x=X1_state.id,y=F2))+
+  geom_boxplot(color="black",position = position_dodge(0.8),width=0.3,lwd=0.4,outlier.shape = NA)+
+  geom_jitter(position = position_dodge(0.8),aes(colour=X1_state.id),size=1.5)+
+  facet_grid(~X1_locus)+
+  scale_y_continuous("Frequency of shared clonotypes",expand=c(0,0.02),breaks=c(0,0.25,0.5,0.75,1.0),limits=c(0,1))+
+  scale_colour_manual(values = c("#154360","#B03A2E","#0E6251"))+
+  scale_x_discrete(labels=c("Healthy" = "Healthy", "CVID" = "CVID\nwith AD",
+                            "Infected" = "CVID\nw.o AD"))+
+  ggtitle("Between subsets, same donor")+
+  guides(colour = FALSE)+
+  theme_gray()+
+  theme(axis.line = element_blank(),
+        axis.title.x  = element_blank(),
+        axis.ticks = element_line(size=0.2,color = 'black'),
+        plot.title = element_text(color = 'black'),
+        axis.ticks.length=unit(.05, "cm"),
+        legend.key.size = unit(0.2, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(color = "grey",
+                                          size = 0.2,
+                                          linetype = 'dotted'),
+        text=element_text(size=8,face="plain"))+
+  geom_label(x = 3, y = 0.9,aes(label=label),data=d_labels,
+             size=2,fill="grey92",label.size = NA,
+             label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))
+q
+```
+
+## Overlap F2 metrics between donors
+
+File generated with vdjtools CalcPairwiseDistances module (documentation: https://vdjtools-doc.readthedocs.io/en/master/overlap.html). Uses MiXCR data (https://figshare.com/s/d7937088b4b9cbf3c827) as input.
+
+```{r,warning=FALSE}
+df_donors<-read.table("C:/NGS_tools/Light_Chain/repseq_IGKL/data/overlap_between_donors.tsv", header=T, sep = "\t")
+
+df_donors<-data.frame(df_donors)
+df_donors$locus<-factor(df_donors$locus)
+df_donors$cell_type <-factor(df_donors$cell_type)
+df_donors$state <- as.factor(df_donors$state)
+df_donors$Cell_state <- factor(df_donors$Cell_state,levels = c("Healthy bright","Healthy naive", "Infected bright","Infected naive","CVID bright","CVID naive"))
+levels(df_donors$Cell_state)<-c("Healthy:bright","Healthy:naive","CVID w.o AD:bright","CVID w.o AD:naive","CVID with AD:bright","CVID with AD:naive")
+head(df_donors)
+```
+
+```{r,warning=FALSE}
+f_labels <- data.frame(locus = c("IGK","IGL"), label = c("T=-11.138,\nP=5.868e-07,\ndiff=-0.3908849","T=-4.4966,\nP=0.001149,\ndiff=-0.3719602"))
+g_labels <- data.frame(locus = c("IGK","IGL"), label = c("T=-9.4371,\nP=9.993e-12,\ndiff=-0.2660398","T=-5.28,\nP=4.832e-06,\ndiff=-0.2117583"))
+h_labels <- data.frame(locus = c("IGK","IGL"), label = c("T=-13.021,\nP=1.35e-07,\ndiff=-0.3827802","T=-4.2541,\nP=0.001679,\ndiff=-0.3912764"))
+
+
+r<-ggplot(df_donors,aes(x=Cell_state,y=F2))+
+  geom_boxplot(position = position_dodge(0.8),color="black",width=0.3,lwd=0.4,outlier.shape = NA)+
+  geom_jitter(position = position_dodge(0.8),aes(colour=Cell_state),size=1.5)+
+  facet_grid(~locus)+
+  labs(colour="Status:subset")+
+  scale_y_continuous("Frequency of shared clonotypes",expand=c(0,0.02),breaks=c(0,0.25,0.50,0.75,1),limits = c(0,1.03))+
+  scale_colour_manual(values = c("#C31418","#F76A0E","#EACD1E","#66AB09","#137DE0","#8809B5"))+
+  ggtitle("Between donors")+
+  theme_gray()+
+  theme(axis.line = element_blank(),
+        axis.title.x  = element_blank(),
+        axis.ticks = element_line(size=0.2,color = 'black'),
+        plot.title = element_text(color = 'black'),
+        axis.ticks.length=unit(.05, "cm"),
+        legend.key.size = unit(0.2, 'cm'),
+        axis.text.x =element_blank(),
+        axis.ticks.x=element_blank(),
+        legend.position = "bottom",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(color = "grey",
+                                          size = 0.2,
+                                          linetype = 'dotted'),
+        text=element_text(size=8,face="plain"))+
+  geom_label(x = 1.5, y = 0.9,aes(label=label),data=f_labels,
+             size=1.7,fill="grey92",label.size = NA,
+             label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))+
+  geom_label(x = 3.5, y = 0.9,aes(label=label),data=h_labels,
+             size=1.7,fill="grey92",label.size = NA,
+             label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))+
+  geom_label(x = 5.5, y = 0.9,aes(label=label),data=g_labels,
+             size=1.7,fill="grey92",label.size = NA,
+            label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))
+r
+```

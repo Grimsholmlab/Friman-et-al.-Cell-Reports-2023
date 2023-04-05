@@ -1,0 +1,96 @@
+---
+title: "IGLJ usage"
+author: "Erik Engstrom"
+date: '2023-04-04'
+output: html_document
+---
+
+```{r setup,include=FALSE,warning=FALSE}
+library(ComplexHeatmap)
+library(circlize)
+library(RColorBrewer)
+```
+
+## Joining segment usage
+File generated with vdjtools CalcSegmentUsage module (https://vdjtools-doc.readthedocs.io/en/master/basic.html).
+Uses MiXCR data (https://figshare.com/s/d7937088b4b9cbf3c827) as input.
+
+```{r,warning=FALSE}
+df_heat<-read.table("C:/NGS_tools/Light_Chain/repseq_IGKL/data/IGLJ_usage.tsv", header=T, sep = "\t")
+df_heat = subset(df_heat, select = -c(sample_id,state.id,cell.type.id,..filter..) )
+df_heat<-t(df_heat)
+fcts=df_heat[rowMeans(df_heat)>=0.01,]
+head(fcts)
+```
+
+```{r,warning=FALSE}
+gene<-factor(c(rep("IGK",5),rep("IGL",3)),levels=c("IGK","IGL"))
+gene<-data.frame(gene)
+col2 = list(gene = c("IGK" = "#36454F", "IGL" = "lightgrey"))
+status = factor(c(rep("CVID with AD",14),rep("Healthy",8),rep("CVID w.o AD",8)),levels=c("Healthy","CVID w.o AD","CVID with AD"))
+subset= factor(c(rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1),
+                 rep("Bright",1),rep("Naive",1)),
+               levels=c("Bright","Naive"))
+df2<-data.frame(status,subset)
+colnames(df2) <- c("status", "subset")
+head(df2)
+```
+
+```{r,warning=FALSE}
+col = list(status = c("CVID with AD" = "#9B59B6", "Healthy" = "#27AE60", "CVID w.o AD" = "#F1C40F"),
+           subset = c("Bright" = "#E74C3C", "Naive" = "#3498DB"))
+
+colnames(fcts)<-c("CVID with AD-41","CVID with AD-41","CVID with AD-45","CVID with AD-45","CVID with AD-29","CVID with AD-29","CVID with AD-35","CVID with AD-35","CVID with AD-14","CVID with AD-14","CVID with AD-5","CVID with AD-5","CVID with AD-47","CVID with AD-47",
+                  "Healthy-1","Healthy-1","Healthy-2","Healthy-2","Healthy-3","Healthy-3","Healthy-4","Healthy-4",
+                  "CVID w.o AD-43","CVID w.o AD-43","CVID w.o AD-49","CVID w.o AD-49","CVID w.o AD-50","CVID w.o AD-50","CVID w.o AD-54","CVID w.o AD-54")
+
+
+ha2 <- rowAnnotation(
+  gene = gene$gene,
+  col = col2,show_legend=FALSE,
+  annotation_name_gp = gpar(fontsize=8),
+  simple_anno_size = unit(0.3, "cm"))
+
+ha <- HeatmapAnnotation(
+  status = df2$status, subset = df2$subset,
+  col = col,
+  simple_anno_size = unit(0.3, "cm"),
+  annotation_legend_param = list(
+    status = list( 
+      title_gp = gpar(fontsize = 8, 
+                      fontface = "plain"), 
+      labels_gp = gpar(fontsize = 6)),
+    subset = list( 
+      title_gp = gpar(fontsize = 8,
+                      fontface = "plain"), 
+      labels_gp = gpar(fontsize = 6)))
+  ,
+  annotation_name_gp = gpar(fontsize=8))
+
+coul <- colorRampPalette(brewer.pal(9,"YlGn"))(34)
+```
+
+```{r,warning=FALSE}
+ht1=Heatmap(fcts,
+            name="Gene frequency",
+            col=coul,
+            top_annotation=ha,
+            right_annotation=ha2,
+            column_names_gp = grid::gpar(fontsize = 6),
+            row_names_gp = grid::gpar(fontsize = 6),
+            heatmap_legend_param=list(legend_direction="horizontal",title_poistion="top",title_gp=gpar(fontsize=8,fontface="bold"),labels_gp = gpar(fontsize = 8)))
+draw(ht1,heatmap_legend_side="bottom")
+```

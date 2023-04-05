@@ -1,0 +1,276 @@
+---
+title: "Fig6"
+output: html_document
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+library(dplyr)
+library(dowser)
+library(alakazam)
+library(shazam)
+library(ggtree)
+library(ggplot2)
+library(ggprism)
+library(ggraph)
+library(tidyverse)
+library(tidygraph)
+library(igraph)
+library(cowplot)
+library(data.table)
+```
+
+## Total mutations
+
+This file was generated from IMGT/HighV-QUEST output processed with ChangeO modules MakeDb.py and CreateGermlines.py (documentation: https://changeo.readthedocs.io/en/stable/) followed by calculating the total mutation counts with function observedMutations() from shazam (documentation: https://shazam.readthedocs.io/en/stable/vignettes/Mutation-Vignette/) 
+
+```{r}
+df_tot<-read.table("C:/NGS_tools/Light_Chain/repseq_IGKL/data/total_mutations.tsv", header=T, sep = "\t")
+head(df_tot)
+```
+
+```{r}
+df_tot<-data.frame(df_tot)
+df_tot$locus<-factor(df_tot$locus)
+df_tot$Cell_type <- as.factor(df_tot$Cell_type)
+df_tot$State <- as.factor(df_tot$State)
+df_tot$Cell_state <- factor(df_tot$Cell_state,levels = c("Healthy bright", "Infected bright","CVID bright", "Healthy naive","Infected naive","CVID naive"))
+levels(df_tot$Cell_state)<-c("Healthy:bright","CVID w.o AD:bright","CVID with AD:bright","Healthy:naive","CVID w.o AD:naive","CVID with AD:naive")
+df_tot <- droplevels(df_tot)
+str(df_tot)
+dt <- data.table(df_tot)
+dtMean <- dt[, .(count = mean(mu_count)), 
+             by = c("State","locus","Cell_state","Cell_type","Sample")]
+head(dtMean)
+```
+
+```{r, warning=FALSE}
+f_labels <- data.frame(locus = c("IGK","IGL"), label = c("F=14.49,\nP=0.00063", "F=8.271,\nP=0.00552"))
+
+p<-ggplot(dtMean,aes(x=Cell_state,y=count))+
+  geom_boxplot(color="black",position = position_dodge(0.8),width=0.3,lwd=0.4,outlier.shape = NA)+
+  geom_jitter(position = position_dodge(0.8),aes(colour=Cell_state),size=1.5)+
+  scale_y_continuous("Mean SHMs per clonotype",breaks=c(0,5,10,15))+
+  scale_colour_manual(values = c("#C31418","#EACD1E","#137DE0","#F76A0E","#66AB09","#8809B5"))+
+  scale_x_discrete(labels=c("Healthy:bright" = "bright\nhealthy", "CVID with AD:bright" = "bright\nCVID\nwith AD",
+                            "CVID w.o AD:bright" = "bright\nCVID\nw.o AD", "Healthy:naive" = "naive\nhealthy", "CVID with AD:naive" = "naive\nCVID\nwith AD",
+                            "CVID w.o AD:naive" = "naive\nCVID\nw.o AD"))+
+  labs(colour="Status:subset")+
+  guides(colour=guide_legend(nrow=2,byrow=TRUE))+
+  facet_grid(~locus)+
+  theme_gray()+
+  theme(axis.line = element_blank(),
+        axis.title.x  = element_blank(),
+        axis.ticks = element_line(size=0.2,color = 'black'),
+        axis.ticks.length=unit(.05, "cm"),
+        axis.text.x = element_blank(),
+        axis.ticks.x=element_blank(),
+        legend.key.size = unit(0.2, 'cm'),
+        panel.grid.major = element_blank(),
+        legend.text = element_text(size=5),
+        legend.title = element_text(size=6),
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom",
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(color = "grey",
+                                          size = 0.2,
+                                          linetype = 'dotted'),
+        text=element_text(size=8,face="plain"))+
+  geom_label(x = 4.8, y = 17, aes(label=label),data=f_labels,
+             size=2,fill="grey92",label.size = NA,
+             label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))
+p
+```
+
+## Replacement to silent mutations
+Obtained by dividing the number of replacement with silent mutation frequencies from the observedMutations() output (documentation: https://shazam.readthedocs.io/en/stable/vignettes/Mutation-Vignette/)
+
+```{r}
+df_rs<-read.table("C:/NGS_tools/Light_Chain/repseq_IGKL/data/replacement_to_silent_mutations.tsv", header=T, sep = "\t")
+head(df_rs)
+```
+
+```{r}
+df_rs<-data.frame(df_rs)
+df_rs$Sample <- as.factor(df_rs$Sample)
+df_rs$locus<-factor(df_rs$locus)
+df_rs$Cell_type <- as.factor(df_rs$Cell_type)
+df_rs$State <- as.factor(df_rs$State)
+df_rs$Cell_state<-as.factor(df_rs$Cell_state)
+df_rs$Cell_state <- factor(df_rs$Cell_state,levels = c("Healthy bright","Infected bright","CVID bright","Healthy naive","Infected naive","CVID naive"))
+str(df_rs)
+
+dt_rs <- data.table(df_rs)
+dtMean_rs <- dt_rs[, .(freq = mean(R_S_freq)), 
+                   by = c("State","locus","Cell_state","Cell_type","Sample")]
+dtMean_rs<-subset(dtMean_rs,Cell_type=="Bright")
+dtMean_rs$Cell_state<-factor(dtMean_rs$Cell_state,levels=c("Healthy bright","Infected bright","CVID bright"))
+head(dtMean_rs)
+```
+
+```{r, warning=FALSE}
+g_labels <- data.frame(locus = c("IGK","IGL"), label = c("F=9.399,\nP=0.0035", "F=3.602,\nP=0.0595"))
+
+q<-ggplot(dtMean_rs,aes(x=Cell_state,y=freq))+
+  geom_boxplot(color="black",position = position_dodge(0.8),width=0.3,lwd=0.4,outlier.shape = NA)+
+  geom_jitter(position = position_dodge(0.8),aes(colour=State),size=1.5)+
+  scale_y_continuous("Mean replacement-to-siltent mutation ratio",breaks=c(1,2,3),limits=c(1,3.2))+
+  scale_colour_manual(values = c("#0E6251","#154360","#B03A2E"))+
+  scale_x_discrete(labels=c("Healthy bright" = "Healthy", "CVID bright" = "CVID\nwith AD",
+                            "Infected bright" = "CVID\nw.o AD", "Healthy naive" = "naive\nhealthy", "CVID naive" = "naive\nCVID\nwith AD",
+                            "Infected naive" = "naive\nCVID\nw.o AD"))+
+  guides(colour = FALSE)+
+  facet_grid(~locus)+
+  theme_gray()+
+  theme(axis.line = element_blank(),
+        axis.title.x  = element_blank(),
+        axis.ticks = element_line(size=0.2,color = 'black'),
+        axis.ticks.length=unit(.05, "cm"),
+        axis.text.x = element_text(size=6),
+        legend.key.size = unit(0.2, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(color = "grey",
+                                          size = 0.2,
+                                          linetype = 'dotted'),
+        text=element_text(size=8,face="plain"))+
+  geom_label(x = 2.5, y = 3.15, aes(label=label),data=g_labels,
+             size=2,fill="grey92",label.size = NA,
+             label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))
+q
+```
+
+## Clone metrics
+
+These are results from IMGT/HighV-QUEST output processed with ChangeO including MakeDb.py, DefineClones.py and CreateGermlines.py (documentation: https://changeo.readthedocs.io/en/stable/)
+
+```{r}
+df<-read.table("C:/NGS_tools/Light_Chain/repseq_IGKL/data/tree_stats.tsv", header=T, sep = "\t")
+head(df)
+```
+
+```{r, warning=FALSE}
+df$Status <- factor(df$Status,levels = c("Healthy","Infected","CVID"))
+df$Property<-factor(df$Property,levels=c("Clones","Singletons","Normalized tree length"))
+levels(df$Property) <- c("A", "B", "C")
+state_names<-c('A' = "Clones",'B' = "Singletons",'C' ="Normalized tree length")
+
+facet_bounds <- read.table(header=TRUE,
+                           text=                           
+                             "Property ymin ymax breaks
+A     500   700   10
+B     390   600   10
+C     0.01  0.1   0.001",
+                           stringsAsFactors=FALSE)
+
+ff <- with(facet_bounds,
+           data.frame(Value=c(ymin,ymax),
+                      Property=c(Property,Property)))
+
+
+s<-ggplot(df,aes(x=Status,y=Value))+
+  geom_boxplot(color="black",position = position_dodge(0.8),width=0.3,lwd=0.4,outlier.shape = NA)+
+  geom_jitter(position = position_dodge(0.8),aes(colour=Status),size=1.5)+
+  scale_x_discrete(labels=c("Healthy" = "Healthy","CVID" = "CVID\nwith AD","Infected" = "CVID\nw.o AD"))+
+  facet_wrap(~Property,scales="free_y",nrow=1,labeller = as_labeller(state_names))+
+  scale_y_continuous("Mean lineage statistic value")+
+  scale_colour_manual(values = c("#154360","#B03A2E","#0E6251"))+
+  guides(colour = 'none')+
+  theme_gray()+
+  theme(axis.line = element_blank(),
+        axis.title.x  = element_blank(),
+        axis.ticks = element_line(size=0.2,color = 'black'),
+        axis.text.x = element_text(size=6),
+        axis.ticks.length=unit(.05, "cm"),
+        legend.key.size = unit(0.2, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major.y = element_line(color = "grey",
+                                          size = 0.2,
+                                          linetype = 'dotted'),
+        text=element_text(size=8,face="plain"))+
+  geom_label(data = data.frame(x = 3, y = 700, Property="A", label = "F=7.326,\nP=0.00949"), 
+             aes(x = x, y = y, label = label), size=2,fill="grey92",label.size = NA,label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))+
+  geom_label(data = data.frame(x = 3, y = 600, Property="B", label = "F=9.705,\nP=0.00372"), 
+             aes(x = x, y = y, label = label), size=2,fill="grey92",label.size = NA,label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))+
+  geom_label(data = data.frame(x = 3, y = 0.1, Property="C", label = "F=25.94,\nP=8.27e-09"), 
+             aes(x = x, y = y, label = label), size=2,fill="grey92",label.size = NA,label.r = unit(0.10, "lines"),label.padding = unit(0.10, "lines"))
+
+p1 <- s + geom_point(data=ff,x=NA)
+p1
+```
+
+## Phylogenetic trees
+
+Result of IMGT/HighV-QUEST outputs processed with ChangeO including MakeDb.py, DefineClones.py, CreateGermlines.py and BuildTrees.py (documentation:https://changeo.readthedocs.io/en/stable/)
+
+```{r}
+# Healthy tree
+HD = readIgphyml("C:/NGS_tools/Light_Chain/repseq_IGKL/data/tree_file_1_HD_igphyml-pass.tab",format="phylo",branches="distance")
+
+HD_tree<-HD$trees[[1]]
+
+taxa_to_color<-c("80_GERM", "rest")
+HD_tree<-groupOTU(HD_tree, taxa_to_color)
+
+hd<-ggtree(HD_tree,size=0.3) + theme_tree2() +
+  geom_tippoint(aes(label=label, subset=isTip, fill=group),size=1.5,alpha=2,stroke=0.5,shape=21)+
+  scale_fill_manual(values = c("#154360","purple"))+
+  scale_x_continuous(limits=c(0,0.25))+
+  coord_cartesian(ylim = c(0,45))+
+  theme(axis.text.x = element_text(size = 5,color="black"),
+        axis.line = element_line(size=0.3),
+        axis.ticks.length=unit(.05, "cm"),
+        legend.position="none",
+        axis.ticks = element_line(size=0.2,color = 'black'))
+hd
+```
+
+```{r}
+# CVID without AD tree
+Infected = readIgphyml("C:/NGS_tools/Light_Chain/repseq_IGKL/data/tree_file_2_CVID_NO_AD_igphyml-pass.tab",format="phylo",branches="distance")
+
+Infected_tree<-Infected$trees[[4]]
+
+taxa_to_color<-c("488_GERM", "rest")
+Infected_tree<-groupOTU(Infected_tree, taxa_to_color)
+
+inf<-ggtree(Infected_tree,size=0.3) + theme_tree2() +
+  geom_tippoint(aes(label=label, subset=isTip, fill=group),size=1.5,alpha=2,stroke=0.5,shape=21)+
+  scale_fill_manual(values = c("#B03A2E","purple"))+
+  coord_cartesian(ylim = c(0,25))+
+  scale_x_continuous(limits=c(0,0.25))+
+  theme(axis.text.x = element_text(size = 5,color="black"),
+        axis.line = element_line(size=0.3),
+        axis.ticks.length=unit(.05, "cm"),
+        legend.position="none",
+        axis.ticks = element_line(size=0.2,color = 'black'))
+inf
+```
+
+```{r}
+# CVID with AD tree
+CVID = readIgphyml("C:/NGS_tools/Light_Chain/repseq_IGKL/data/tree_file_3_CVID_with_AD_igphyml-pass.tab",format="phylo",branches="distance")
+
+CVID_tree<-CVID$trees[[2]]
+
+taxa_to_color<-c("24_GERM", "rest")
+CVID_tree<-groupOTU(CVID_tree, taxa_to_color)
+
+cvid<-ggtree(CVID_tree,size=0.3) + theme_tree2()+
+  geom_tippoint(aes(label=label, subset=isTip, fill=group),size=1.5,alpha=2,stroke=0.5,shape=21)+
+  scale_fill_manual(values = c("#0E6251","purple"))+
+  scale_x_continuous(limits=c(0,0.25))+
+  coord_cartesian(ylim = c(0,20))+
+  labs(caption="nucleotide substitutions per codon")+
+  theme(axis.text.x = element_text(size = 5,color="black"),
+        axis.line = element_line(size=0.3),
+        axis.ticks.length=unit(.05, "cm"),
+        legend.position="none",
+        axis.ticks = element_line(size=0.2,color = 'black'))
+cvid
+```
