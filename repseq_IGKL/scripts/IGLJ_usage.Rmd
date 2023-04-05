@@ -1,7 +1,5 @@
 ---
 title: "IGLJ usage"
-author: "Erik Engstrom"
-date: '2023-04-04'
 output: html_document
 ---
 
