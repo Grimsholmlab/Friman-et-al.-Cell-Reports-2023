@@ -10,7 +10,7 @@ library(RColorBrewer)
 ```
 
 ## Joining segment usage
-File generated with vdjtools CalcSegmentUsage module (https://vdjtools-doc.readthedocs.io/en/master/basic.html).
+File generated with vdjtools CalcSegmentUsage module (documentation: https://vdjtools-doc.readthedocs.io/en/master/basic.html).
 Uses MiXCR data (https://figshare.com/s/d7937088b4b9cbf3c827) as input.
 
 ```{r,warning=FALSE}
