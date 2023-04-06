@@ -10,7 +10,7 @@ mixcr align -p kAligner2 -s hsa -OreadsLayout=Collinear -OvParameters.geneFeatur
 
 mixcr assemble -OassemblingFeatures=VDJRegion -OseparateByC=true -ObadQualityThreshold=15 -OqualityAggregationType=Average --report assembleReport.txt alignments.vdjca clones.clns
 
-mixcr exportClones -c IGL -o -t clones.clns clones.txt
+mixcr exportClones -c IGK,IGL -o -t clones.clns clones.txt
 
 ## Process output from IMGT/HighV-QUEST web tool using ChangeO (documentation: https://changeo.readthedocs.io/en/stable/)
 
